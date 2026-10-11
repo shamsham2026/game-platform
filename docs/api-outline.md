@@ -21,8 +21,9 @@
 ## 學生練習
 
 - `GET  /api/me/recommendations` 登入後建議課題  
-- `POST /api/practice/sessions` `{ topicIds?, gameKind? }` → 隨機題包  
-- `POST /api/practice/sessions/:id/attempts` 提交作答  
+- `POST /api/practice/sessions` `{ topicIds }` → 預設 10 題由淺入深  
+- `POST /api/practice/attempts` 提交作答  
+- `GET  /api/practice/sessions/:id/summary` 一句總結 + 鞏固策略  
 - `GET  /api/me/mastery` 掌握度分析  
 
 ## 遊戲生成

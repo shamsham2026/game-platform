@@ -32,12 +32,25 @@ type QuizItem = {
   options: { id: string; text: string }[];
 };
 
+type SessionSummary = {
+  sessionId: string;
+  topicTitle: string;
+  summary: string;
+  strategies: string[];
+  correctCount: number;
+  total: number;
+  accuracy: number;
+  weakBand: string;
+};
+
 const REASON_LABEL: Record<string, string> = {
   this_week_weak: "本週進度・尚需加強",
   prerequisite: "先修課題未穩",
   recent_weak: "近期弱項",
   fresh: "尚未練習",
 };
+
+const DIFF_LABEL = ["", "基礎", "淺層", "進階", "應用", "挑戰"];
 
 export default function HomePage() {
   const [classCode, setClassCode] = useState("4A");
@@ -51,6 +64,7 @@ export default function HomePage() {
   const [feedback, setFeedback] = useState<"correct" | "wrong" | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [summary, setSummary] = useState<SessionSummary | null>(null);
 
   async function onLogin(e: FormEvent) {
     e.preventDefault();
@@ -59,6 +73,7 @@ export default function HomePage() {
     setDone(false);
     setSessionId(null);
     setItems([]);
+    setSummary(null);
     try {
       const res = await fetch("/api/auth/student-login", {
         method: "POST",
@@ -83,11 +98,12 @@ export default function HomePage() {
     setPicked(null);
     setIndex(0);
     setDone(false);
+    setSummary(null);
     try {
       const res = await fetch("/api/practice/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topicIds, count: 5 }),
+        body: JSON.stringify({ topicIds }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "無法開始練習");
@@ -98,6 +114,21 @@ export default function HomePage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function finishSession(id: string) {
+    const res = await fetch(`/api/practice/sessions/${id}/summary`);
+    const data = await res.json();
+    if (res.ok) {
+      setSummary(data);
+    }
+    setDone(true);
+    setFeedback(null);
+    void fetch("/api/me/recommendations")
+      .then((r) => r.json())
+      .then((payload) => {
+        if (payload.student) setLogin(payload);
+      });
   }
 
   async function answer(optionId: string) {
@@ -120,14 +151,11 @@ export default function HomePage() {
     setFeedback(data.isCorrect ? "correct" : "wrong");
     window.setTimeout(() => {
       if (index + 1 >= items.length) {
-        setDone(true);
-        setFeedback(null);
-        // refresh recommendations
-        void fetch("/api/me/recommendations")
-          .then((r) => r.json())
-          .then((payload) => {
-            if (payload.student) setLogin(payload);
-          });
+        if (sessionId) void finishSession(sessionId);
+        else {
+          setDone(true);
+          setFeedback(null);
+        }
       } else {
         setIndex((i) => i + 1);
         setFeedback(null);
@@ -151,7 +179,7 @@ export default function HomePage() {
                 課練<span>遊</span>
               </h1>
               <p className="lede">
-                以班別學號進入，系統按進度表與掌握度建議今日課題；每次題目隨機，溫習像遊戲一樣可持續。
+                每次練習 10 題由淺入深；結束後用一句話總結表現，並給你相應鞏固策略。
               </p>
               <div className="atmosphere" style={{ marginTop: "1.75rem" }} />
             </div>
@@ -198,12 +226,28 @@ export default function HomePage() {
             今日建議
           </h1>
           <p className="lede">
-            課題目標來自課本、不可改動；系統只按範疇抽練習，並依你的掌握度排序。
+            每局 10 題由淺入深；課題目標來自課本不可改，系統按範疇抽練習。
           </p>
 
           {!sessionId || done ? (
             <div className="panel" style={{ marginTop: "1.5rem" }}>
-              <h2>現在先練這些課題</h2>
+              {summary ? (
+                <div className="debrief" style={{ marginBottom: "1.5rem" }}>
+                  <h2>本局總結</h2>
+                  <p className="summary-line">{summary.summary}</p>
+                  <p className="meta" style={{ marginTop: "0.35rem" }}>
+                    得分 {summary.correctCount}/{summary.total}
+                  </p>
+                  <h3 className="strategy-title">鞏固策略</h3>
+                  <ol className="strategy-list">
+                    {summary.strategies.map((s) => (
+                      <li key={s}>{s}</li>
+                    ))}
+                  </ol>
+                </div>
+              ) : null}
+
+              <h2>{summary ? "繼續練習" : "現在先練這些課題"}</h2>
               {login.recommendations.length === 0 ? (
                 <p className="meta">暫無建議，請教師先匯入進度表與審核練習。</p>
               ) : (
@@ -216,7 +260,13 @@ export default function HomePage() {
                           {REASON_LABEL[r.reason] ?? r.reason}
                         </div>
                       </div>
-                      <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: "0.75rem",
+                          alignItems: "center",
+                        }}
+                      >
                         <span className="score">
                           {Math.round(r.masteryScore * 100)}%
                         </span>
@@ -226,7 +276,7 @@ export default function HomePage() {
                           disabled={loading}
                           onClick={() => void startPractice([r.topicId])}
                         >
-                          練習
+                          練習 10 題
                         </button>
                       </div>
                     </li>
@@ -234,22 +284,27 @@ export default function HomePage() {
                 </ul>
               )}
               {error ? <p className="error">{error}</p> : null}
-              {done ? (
-                <p className="meta" style={{ marginTop: "1rem" }}>
-                  本回練習完成。掌握度已更新，可再選一題組繼續。
-                </p>
-              ) : null}
             </div>
           ) : current ? (
             <div className="panel quiz" style={{ marginTop: "1.5rem" }}>
               <p className="meta">
-                第 {index + 1} / {items.length} 題 · session 隨機抽題
+                第 {index + 1} / {items.length} 題 · 由淺入深 ·{" "}
+                {DIFF_LABEL[current.difficulty] ?? `難度 ${current.difficulty}`}
               </p>
+              <div className="progress-track" aria-hidden>
+                <div
+                  className="progress-fill"
+                  style={{
+                    width: `${((index + 1) / Math.max(items.length, 1)) * 100}%`,
+                  }}
+                />
+              </div>
               <h2>{current.stem}</h2>
               <div className="quiz">
                 {current.options.map((opt) => {
                   let cls = "option";
-                  if (picked === opt.id && feedback === "correct") cls += " correct";
+                  if (picked === opt.id && feedback === "correct")
+                    cls += " correct";
                   if (picked === opt.id && feedback === "wrong") cls += " wrong";
                   return (
                     <button

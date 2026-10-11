@@ -140,7 +140,14 @@ async function main() {
     },
   });
 
-  const bank = [
+  // 分數課題：至少 10 題，難度 1→5 由淺入深
+  const bank: {
+    stem: string;
+    options: { id: string; text: string }[];
+    answer: { correctId: string };
+    topicId: string;
+    difficulty: number;
+  }[] = [
     {
       stem: "1/4 + 2/4 = ?",
       options: [
@@ -150,6 +157,7 @@ async function main() {
       ],
       answer: { correctId: "a" },
       topicId: topicFractions.id,
+      difficulty: 1,
     },
     {
       stem: "3/5 − 1/5 = ?",
@@ -160,6 +168,7 @@ async function main() {
       ],
       answer: { correctId: "a" },
       topicId: topicFractions.id,
+      difficulty: 1,
     },
     {
       stem: "2/7 + 3/7 = ?",
@@ -170,16 +179,7 @@ async function main() {
       ],
       answer: { correctId: "a" },
       topicId: topicFractions.id,
-    },
-    {
-      stem: "小明吃了披薩的 1/8，小華吃了 3/8，二人一共吃了多少？",
-      options: [
-        { id: "a", text: "4/8" },
-        { id: "b", text: "3/8" },
-        { id: "c", text: "4/16" },
-      ],
-      answer: { correctId: "a" },
-      topicId: topicFractions.id,
+      difficulty: 2,
     },
     {
       stem: "5/9 − 2/9 = ?",
@@ -190,6 +190,96 @@ async function main() {
       ],
       answer: { correctId: "a" },
       topicId: topicFractions.id,
+      difficulty: 2,
+    },
+    {
+      stem: "小明吃了披薩的 1/8，小華吃了 3/8，二人一共吃了多少？",
+      options: [
+        { id: "a", text: "4/8" },
+        { id: "b", text: "3/8" },
+        { id: "c", text: "4/16" },
+      ],
+      answer: { correctId: "a" },
+      topicId: topicFractions.id,
+      difficulty: 3,
+    },
+    {
+      stem: "一條繩子長 7/10 米，剪去 2/10 米，還剩多少米？",
+      options: [
+        { id: "a", text: "5/10 米" },
+        { id: "b", text: "9/10 米" },
+        { id: "c", text: "5/20 米" },
+      ],
+      answer: { correctId: "a" },
+      topicId: topicFractions.id,
+      difficulty: 3,
+    },
+    {
+      stem: "1/6 + 1/6 + 2/6 = ?",
+      options: [
+        { id: "a", text: "4/6" },
+        { id: "b", text: "4/18" },
+        { id: "c", text: "3/6" },
+      ],
+      answer: { correctId: "a" },
+      topicId: topicFractions.id,
+      difficulty: 4,
+    },
+    {
+      stem: "水瓶原有水 9/12 升，倒出 4/12 升後又加入 2/12 升，現在有多少升？",
+      options: [
+        { id: "a", text: "7/12 升" },
+        { id: "b", text: "5/12 升" },
+        { id: "c", text: "11/12 升" },
+      ],
+      answer: { correctId: "a" },
+      topicId: topicFractions.id,
+      difficulty: 4,
+    },
+    {
+      stem: "甲跑了全程的 3/8，乙跑了全程的 5/8。誰跑得多？多多少？",
+      options: [
+        { id: "a", text: "乙多 2/8" },
+        { id: "b", text: "甲多 2/8" },
+        { id: "c", text: "一樣多" },
+      ],
+      answer: { correctId: "a" },
+      topicId: topicFractions.id,
+      difficulty: 5,
+    },
+    {
+      stem: "媽媽切了蛋糕的 5/9，爸爸又切了 1/9，還剩多少？若再分給孩子 2/9，最後剩多少？",
+      options: [
+        { id: "a", text: "先剩 3/9，最後剩 1/9" },
+        { id: "b", text: "先剩 4/9，最後剩 2/9" },
+        { id: "c", text: "先剩 6/9，最後剩 4/9" },
+      ],
+      answer: { correctId: "a" },
+      topicId: topicFractions.id,
+      difficulty: 5,
+    },
+    // extra shallow/mid for random within-band variety
+    {
+      stem: "4/11 − 1/11 = ?",
+      options: [
+        { id: "a", text: "3/11" },
+        { id: "b", text: "5/11" },
+        { id: "c", text: "3/22" },
+      ],
+      answer: { correctId: "a" },
+      topicId: topicFractions.id,
+      difficulty: 1,
+    },
+    {
+      stem: "6/13 + 5/13 = ?",
+      options: [
+        { id: "a", text: "11/13" },
+        { id: "b", text: "11/26" },
+        { id: "c", text: "1/13" },
+      ],
+      answer: { correctId: "a" },
+      topicId: topicFractions.id,
+      difficulty: 2,
     },
     {
       stem: "0.3 讀作？",
@@ -200,6 +290,7 @@ async function main() {
       ],
       answer: { correctId: "a" },
       topicId: topicDecimals.id,
+      difficulty: 1,
     },
     {
       stem: "哪一個等於 0.5？",
@@ -210,6 +301,7 @@ async function main() {
       ],
       answer: { correctId: "a" },
       topicId: topicDecimals.id,
+      difficulty: 2,
     },
   ];
 
@@ -228,7 +320,7 @@ async function main() {
         contentHash,
         optionsJson: JSON.stringify(row.options),
         answerJson: JSON.stringify(row.answer),
-        difficulty: 1,
+        difficulty: row.difficulty,
         reviewStatus: ReviewStatus.approved,
       },
     });

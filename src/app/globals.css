@@ -291,3 +291,48 @@ select {
     transform: translateY(-8px);
   }
 }
+
+.progress-track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  margin: 0.35rem 0 0.85rem;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #5eead4, var(--accent));
+  transition: width 0.35s ease;
+}
+
+.debrief {
+  padding-bottom: 1.1rem;
+  border-bottom: 1px solid var(--line);
+  animation: rise 0.55s ease both;
+}
+
+.summary-line {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  line-height: 1.45;
+  margin: 0.35rem 0 0;
+}
+
+.strategy-title {
+  font-size: 0.95rem;
+  margin: 1rem 0 0.45rem;
+  color: var(--accent);
+}
+
+.strategy-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 0.45rem;
+  color: var(--ink-muted);
+}
+
+.strategy-list li {
+  line-height: 1.45;
+}

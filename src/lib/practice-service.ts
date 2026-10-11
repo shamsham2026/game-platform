@@ -1,10 +1,12 @@
 import { ReviewStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import {
-  pickRandomExercises,
+  PRACTICE_QUESTION_COUNT,
+  pickProgressiveExercises,
   shuffleOptionOrder,
 } from "@/lib/random-session";
 import { updateMasteryScore } from "@/lib/recommend";
+import { buildSessionFeedback } from "@/lib/session-feedback";
 
 export async function startPracticeSession(opts: {
   studentId: string;
@@ -12,7 +14,7 @@ export async function startPracticeSession(opts: {
   count?: number;
   templateId?: string;
 }) {
-  const count = opts.count ?? 8;
+  const count = opts.count ?? PRACTICE_QUESTION_COUNT;
 
   const exercises = await prisma.exercise.findMany({
     where: {
@@ -20,7 +22,7 @@ export async function startPracticeSession(opts: {
       reviewStatus: ReviewStatus.approved,
       isActive: true,
     },
-    select: { id: true, optionsJson: true },
+    select: { id: true, optionsJson: true, difficulty: true },
   });
 
   const recentSessions = await prisma.practiceSession.findMany({
@@ -33,10 +35,13 @@ export async function startPracticeSession(opts: {
     s.items.map((i) => i.exerciseId),
   );
 
-  const picked = pickRandomExercises({
+  const picked = pickProgressiveExercises({
     studentId: opts.studentId,
     topicIds: opts.topicIds,
-    exerciseIds: exercises.map((e) => e.id),
+    exercises: exercises.map((e) => ({
+      id: e.id,
+      difficulty: e.difficulty,
+    })),
     recentExerciseIds,
     count,
   });
@@ -86,10 +91,11 @@ export async function startPracticeSession(opts: {
     },
   });
 
-  // Strip answers from client payload
   return {
     id: session.id,
     rngSeed: session.rngSeed,
+    questionCount: session.items.length,
+    progression: "easy_to_hard" as const,
     items: session.items.map((item) => {
       const options = JSON.parse(item.exercise.optionsJson) as {
         id: string;
@@ -131,7 +137,10 @@ export async function submitAttempt(opts: {
   if (!item) throw new Error("題目不存在");
   if (item.attempt) throw new Error("此題已作答");
 
-  const answer = JSON.parse(item.exercise.answerJson) as { correctId?: string; value?: unknown };
+  const answer = JSON.parse(item.exercise.answerJson) as {
+    correctId?: string;
+    value?: unknown;
+  };
   let isCorrect = false;
   if (answer.correctId !== undefined) {
     isCorrect =
@@ -181,4 +190,54 @@ export async function submitAttempt(opts: {
   });
 
   return { attemptId: attempt.id, isCorrect, masteryScore: score };
+}
+
+export async function getSessionFeedback(sessionId: string, studentId: string) {
+  const session = await prisma.practiceSession.findUnique({
+    where: { id: sessionId },
+    include: {
+      items: {
+        orderBy: { position: "asc" },
+        include: {
+          attempt: true,
+          exercise: { include: { topic: true } },
+        },
+      },
+    },
+  });
+
+  if (!session || session.studentId !== studentId) {
+    throw new Error("找不到練習回合");
+  }
+
+  const answered = session.items.filter((i) => i.attempt);
+  if (answered.length === 0) {
+    throw new Error("尚未作答");
+  }
+
+  const topicTitle =
+    session.items[0]?.exercise.topic.title ??
+    "本科課題";
+
+  const feedback = buildSessionFeedback(
+    answered.map((i) => ({
+      position: i.position,
+      difficulty: i.exercise.difficulty,
+      isCorrect: Boolean(i.attempt?.isCorrect),
+    })),
+    topicTitle,
+  );
+
+  if (answered.length === session.items.length && !session.endedAt) {
+    await prisma.practiceSession.update({
+      where: { id: sessionId },
+      data: { endedAt: new Date() },
+    });
+  }
+
+  return {
+    sessionId,
+    topicTitle,
+    ...feedback,
+  };
 }

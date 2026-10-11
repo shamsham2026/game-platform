@@ -1,10 +1,12 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { PRACTICE_QUESTION_COUNT } from "@/lib/random-session";
 import { startPracticeSession } from "@/lib/practice-service";
 
 const bodySchema = z.object({
   topicIds: z.array(z.string()).min(1),
+  /** Defaults to 10 (由淺入深). */
   count: z.number().int().min(1).max(30).optional(),
   templateId: z.string().optional(),
 });
@@ -24,7 +26,7 @@ export async function POST(req: Request) {
   const session = await startPracticeSession({
     studentId,
     topicIds: parsed.data.topicIds,
-    count: parsed.data.count,
+    count: parsed.data.count ?? PRACTICE_QUESTION_COUNT,
     templateId: parsed.data.templateId,
   });
 

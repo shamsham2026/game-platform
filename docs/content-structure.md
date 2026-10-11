@@ -69,12 +69,13 @@
 - 進入畫面憑證：**班別代碼 + 學號**（不必電郵密碼）。
 - `ClassRoom.code` 全校唯一；`Student.studentNo` 在班內唯一。
 
-### L4 練習運行（隨機）
+### L4 練習運行（由淺入深 + 隨機）
 
-- 每次登入／開始練習建立 `PracticeSession`。
-- 以 `(studentId, topicIds, timestamp, salt)` 生成種子，Fisher–Yates 抽題。
+- 每次開始練習建立 `PracticeSession`，預設 **10 題**。
+- 按難度 1→5 配額抽題（每檔約 2 題），檔內隨機；整局順序由淺入深。
 - 優先排除該生最近 N 次 session 已出現的題，仍不夠才放寬。
-- Session 內題目順序與選項順序均隨機。
+- 選項順序仍以種子隨機打亂。
+- 結束後產生**一句表現總結** + **2–3 條鞏固策略**（見 `session-feedback`）。
 
 ### L5 個人化與分析
 
