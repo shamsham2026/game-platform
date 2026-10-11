@@ -1,0 +1,86 @@
+{
+  "generatorUrl": "https://shamsham2026.github.io/game-generator/",
+  "legacyPlatformUrl": "https://shamsham2026.github.io/6B-game-platform/",
+  "games": [
+    {
+      "id": "p3-multiplication",
+      "title": "九九乘法拔河對抗賽",
+      "grade": "p3",
+      "topic": "基本乘法",
+      "url": "https://shamsham2026.github.io/p3-multiplication/",
+      "author": "沈老師工作室",
+      "source": "seed",
+      "tags": ["對戰", "九九乘法"]
+    },
+    {
+      "id": "p3-parallel",
+      "title": "小三平行線互動教學",
+      "grade": "p3",
+      "topic": "平行與垂直",
+      "url": "https://shamsham2026.github.io/p3-parallel/",
+      "author": "沈美玉主任",
+      "source": "seed",
+      "tags": ["圖形與空間"]
+    },
+    {
+      "id": "division",
+      "title": "帶餘與不帶餘除法",
+      "grade": "p3",
+      "topic": "基本除法",
+      "url": "https://shamsham2026.github.io/division/",
+      "author": "沈老師工作室",
+      "source": "seed",
+      "tags": ["除法"]
+    },
+    {
+      "id": "p4-fraction",
+      "title": "繽紛分數冒險王國",
+      "grade": "p4",
+      "topic": "如何比較分數",
+      "url": "https://shamsham2026.github.io/P4-Fraction-/",
+      "author": "沈老師工作室",
+      "source": "seed",
+      "tags": ["分數", "冒險"]
+    },
+    {
+      "id": "p5-lesson-cook",
+      "title": "有營小廚神模擬大賽",
+      "grade": "p5",
+      "topic": "百分數的初步認識",
+      "url": "https://shamsham2026.github.io/5d-lesson/",
+      "author": "沈美玉主任、蕭燕唐主任",
+      "source": "seed",
+      "tags": ["跨科", "模擬"]
+    },
+    {
+      "id": "p6-shooting-decimal",
+      "title": "恐龍神射手：分數除法大冒險",
+      "grade": "p6",
+      "topic": "分數除法與四則混合運算",
+      "url": "https://shamsham2026.github.io/P6-shooting-decimal/",
+      "author": "沈老師工作室",
+      "source": "seed",
+      "tags": ["射擊", "分數除法"]
+    },
+    {
+      "id": "p6-moving-decimal",
+      "title": "小數點跳跳樂 - 青蛙跳跳大對決",
+      "grade": "p6",
+      "topic": "小數除法與循環小數",
+      "url": "https://shamsham2026.github.io/p6-moving-decimal/",
+      "author": "沈老師工作室",
+      "source": "seed",
+      "tags": ["對戰", "小數"]
+    },
+    {
+      "id": "6b-platform",
+      "title": "6B 班數學遊戲專用平台",
+      "grade": "p6",
+      "topic": "綜合複習",
+      "url": "https://shamsham2026.github.io/6B-game-platform/",
+      "author": "6B 班",
+      "source": "seed",
+      "tags": ["班級平台", "模擬題"]
+    }
+  ]
+}
