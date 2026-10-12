@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { SiteNav } from "@/components/SiteNav";
 
 type Recommendation = {
   topicId: string;
@@ -168,6 +169,7 @@ export default function HomePage() {
 
   return (
     <main className="shell">
+      <SiteNav active="practice" />
       {!login ? (
         <section className="hero">
           <div className="hero-grid">
@@ -179,7 +181,7 @@ export default function HomePage() {
                 課練<span>遊</span>
               </h1>
               <p className="lede">
-                每次練習 10 題由淺入深；結束後用一句話總結表現，並給你相應鞏固策略。
+                每次練習 10 題由淺入深；結束後用一句話總結表現，並給你相應鞏固策略。也可到六級遊戲庫玩同學分享的關卡。
               </p>
               <div className="atmosphere" style={{ marginTop: "1.75rem" }} />
             </div>
