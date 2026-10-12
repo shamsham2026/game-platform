@@ -58,6 +58,35 @@ export function hashId(str: string): string {
   return Math.abs(h).toString(36);
 }
 
+/** UTF-8 safe base64url (works in Node and browsers). */
+export function toBase64Url(text: string): string {
+  if (typeof Buffer !== "undefined") {
+    return Buffer.from(text, "utf8")
+      .toString("base64")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/g, "");
+  }
+  const bytes = new TextEncoder().encode(text);
+  let binary = "";
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return btoa(binary)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
+export function fromBase64Url(pack: string): string {
+  const b64 = pack.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = b64 + "=".repeat((4 - (b64.length % 4 || 4)) % 4);
+  if (typeof Buffer !== "undefined") {
+    return Buffer.from(padded, "base64").toString("utf8");
+  }
+  const binary = atob(padded);
+  const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
 export function encodeSharedPack(list: HubGame[]): string {
   const json = JSON.stringify(
     list.map((g) => ({
@@ -71,19 +100,12 @@ export function encodeSharedPack(list: HubGame[]): string {
       tags: g.tags || [],
     })),
   );
-  const b64 = btoa(unescape(encodeURIComponent(json)))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/g, "");
-  return b64;
+  return toBase64Url(json);
 }
 
 export function decodeSharedPack(pack: string): HubGame[] {
   try {
-    const json = decodeURIComponent(
-      escape(atob(pack.replace(/-/g, "+").replace(/_/g, "/"))),
-    );
-    const list = JSON.parse(json);
+    const list = JSON.parse(fromBase64Url(pack));
     return Array.isArray(list) ? list : [];
   } catch {
     try {
@@ -125,4 +147,105 @@ export function mergeCatalog(
   for (const g of seed) map.set(g.id, { ...g, source: g.source || "seed" });
   for (const g of shared) map.set(g.id, g);
   return Array.from(map.values());
+}
+
+export function normalizeGameUrl(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return trimmed;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+}
+
+export function createSharedGame(input: {
+  title: string;
+  grade: string;
+  topic: string;
+  url: string;
+  author: string;
+  now?: number;
+}): HubGame {
+  const url = normalizeGameUrl(input.url);
+  const title = input.title.trim();
+  const author = input.author.trim();
+  const now = input.now ?? Date.now();
+  return {
+    id: `shared-${hashId(url + title + author + now)}`,
+    title,
+    grade: input.grade,
+    topic: input.topic || "綜合複習",
+    url,
+    author,
+    source: "shared",
+    tags: ["同學分享", "Generator"],
+  };
+}
+
+export type StorageLike = {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+};
+
+export function readSharedFromStorage(storage: StorageLike): HubGame[] {
+  try {
+    const raw = storage.getItem(STORAGE_KEY);
+    const list = raw ? JSON.parse(raw) : [];
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+export function writeSharedToStorage(
+  storage: StorageLike,
+  games: HubGame[],
+): void {
+  storage.setItem(STORAGE_KEY, JSON.stringify(games));
+}
+
+/**
+ * Boot shared-game state: localStorage ∪ ?pack= from class share link.
+ * Persists the merged list back to storage when a pack is present.
+ */
+export function bootstrapSharedGames(opts: {
+  storage: StorageLike;
+  searchParams: URLSearchParams | string;
+}): { shared: HubGame[]; gradeFromUrl: string | null } {
+  const params =
+    typeof opts.searchParams === "string"
+      ? new URLSearchParams(opts.searchParams)
+      : opts.searchParams;
+
+  let shared = readSharedFromStorage(opts.storage);
+  const pack = params.get("pack");
+  if (pack) {
+    shared = mergeSharedLists(shared, decodeSharedPack(pack));
+    writeSharedToStorage(opts.storage, shared);
+  }
+
+  const grade = params.get("grade");
+  const gradeFromUrl =
+    grade && GRADES.some((g) => g.key === grade) ? grade : null;
+
+  return { shared, gradeFromUrl };
+}
+
+/** Build /hub class share URL including grade + optional pack. */
+export function buildClassShareUrl(opts: {
+  hubBaseUrl: string;
+  grade: string;
+  sharedGames: HubGame[];
+}): string {
+  const base = opts.hubBaseUrl.replace(/\/$/, "");
+  const params = new URLSearchParams();
+  params.set("grade", opts.grade);
+  if (opts.sharedGames.length) {
+    params.set("pack", encodeSharedPack(opts.sharedGames));
+  }
+  return `${base}?${params.toString()}`;
+}
+
+export function classShareToastMessage(sharedCount: number): string {
+  return sharedCount > 0
+    ? "班級共享連結已複製！同學打開即可看到分享遊戲。"
+    : "連結已複製（目前尚未有同學分享的遊戲）。";
 }

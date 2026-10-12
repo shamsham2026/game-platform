@@ -6,15 +6,16 @@ import {
   DEFAULT_GENERATOR_URL,
   DEFAULT_LEGACY_URL,
   GRADES,
-  STORAGE_KEY,
   TOPICS,
-  decodeSharedPack,
-  encodeSharedPack,
+  bootstrapSharedGames,
+  buildClassShareUrl,
+  classShareToastMessage,
+  createSharedGame,
   generatorHref,
   gradeMeta,
-  hashId,
   mergeCatalog,
   mergeSharedLists,
+  writeSharedToStorage,
   type HubCatalog,
   type HubGame,
 } from "@/lib/game-hub";
@@ -55,27 +56,11 @@ export default function HubPage() {
         /* use empty seed */
       }
 
-      let shared: HubGame[] = [];
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        const list = raw ? JSON.parse(raw) : [];
-        shared = Array.isArray(list) ? list : [];
-      } catch {
-        shared = [];
-      }
-
-      const params = new URLSearchParams(window.location.search);
-      const fromUrl = params.get("pack");
-      if (fromUrl) {
-        shared = mergeSharedLists(shared, decodeSharedPack(fromUrl));
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(shared));
-      }
-
-      const gradeParam = params.get("grade");
-      let grade = "p4";
-      if (gradeParam && GRADES.some((g) => g.key === gradeParam)) {
-        grade = gradeParam;
-      }
+      const { shared, gradeFromUrl } = bootstrapSharedGames({
+        storage: window.localStorage,
+        searchParams: window.location.search,
+      });
+      const grade = gradeFromUrl ?? "p4";
 
       if (!cancelled) {
         setSeedGames(seed);
@@ -121,8 +106,8 @@ export default function HubPage() {
   const meta = gradeMeta(currentGrade);
 
   function persistShared(next: HubGame[]) {
+    writeSharedToStorage(window.localStorage, next);
     setSharedGames(next);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   }
 
   function selectGrade(key: string) {
@@ -132,54 +117,57 @@ export default function HubPage() {
     setPubTopic((TOPICS[key] || ["綜合複習"])[0]);
   }
 
-  async function copyText(text: string) {
+  /** Returns true when the text was placed on the clipboard. */
+  async function copyText(text: string): Promise<boolean> {
     try {
       await navigator.clipboard.writeText(text);
-      setToast("已複製");
-      return;
+      return true;
     } catch {
-      /* fallback */
+      /* fallback below */
     }
     try {
       const ta = document.createElement("textarea");
       ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
       document.body.appendChild(ta);
       ta.select();
-      document.execCommand("copy");
+      const ok = document.execCommand("copy");
       document.body.removeChild(ta);
-      setToast("已複製");
+      return ok;
     } catch {
-      setToast("請手動複製：" + text);
+      return false;
     }
   }
 
-  function copyClassShareLink() {
-    const origin = `${window.location.origin}/hub`;
-    const params = new URLSearchParams();
-    params.set("grade", currentGrade);
-    if (sharedGames.length) params.set("pack", encodeSharedPack(sharedGames));
-    void copyText(`${origin}?${params.toString()}`);
+  async function copyClassShareLink() {
+    const shareUrl = buildClassShareUrl({
+      hubBaseUrl: `${window.location.origin}/hub`,
+      grade: currentGrade,
+      sharedGames,
+    });
+    const ok = await copyText(shareUrl);
     setToast(
-      sharedGames.length
-        ? "班級共享連結已複製！同學打開即可看到分享遊戲。"
-        : "連結已複製（目前尚未有同學分享的遊戲）。",
+      ok
+        ? classShareToastMessage(sharedGames.length)
+        : `請手動複製：${shareUrl}`,
     );
   }
 
   function onPublish(e: FormEvent) {
     e.preventDefault();
-    let gameUrl = url.trim();
-    if (!/^https?:\/\//i.test(gameUrl)) gameUrl = "https://" + gameUrl;
-    const game: HubGame = {
-      id: `shared-${hashId(gameUrl + title + author + Date.now())}`,
-      title: title.trim(),
+    const game = createSharedGame({
+      title,
       grade: pubGrade,
       topic: pubTopic,
-      url: gameUrl,
-      author: author.trim(),
-      source: "shared",
-      tags: ["同學分享", "Generator"],
-    };
+      url,
+      author,
+    });
+    if (!game.title || !game.author || !game.url) {
+      setToast("請填妥班別學號、遊戲名稱與網址");
+      return;
+    }
     const next = mergeSharedLists(sharedGames, [game]);
     persistShared(next);
     setModalOpen(false);
@@ -221,7 +209,11 @@ export default function HubPage() {
           <button type="button" className="btn btn-ghost" onClick={() => setModalOpen(true)}>
             分享遊戲
           </button>
-          <button type="button" className="btn btn-ghost" onClick={copyClassShareLink}>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => void copyClassShareLink()}
+          >
             複製共享連結
           </button>
         </div>
