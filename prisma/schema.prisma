@@ -1,0 +1,271 @@
+// Game Platform — content & practice schema
+// See docs/content-structure.md for layer rules.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── L1 Curriculum (locked objectives) ───────────────────
+
+model GradeLevel {
+  id        String   @id @default(cuid())
+  code      String   @unique // e.g. P4, S1
+  name      String
+  sortOrder Int      @default(0)
+  subjects  Subject[]
+  plans     ProgressPlan[]
+  classes   ClassRoom[]
+  createdAt DateTime @default(now())
+}
+
+model Subject {
+  id        String   @id @default(cuid())
+  gradeId   String
+  grade     GradeLevel @relation(fields: [gradeId], references: [id])
+  code      String
+  name      String
+  domains   Domain[]
+  topics    Topic[]
+  plans     ProgressPlan[]
+  createdAt DateTime @default(now())
+
+  @@unique([gradeId, code])
+}
+
+model Domain {
+  id        String   @id @default(cuid())
+  subjectId String
+  subject   Subject  @relation(fields: [subjectId], references: [id])
+  code      String
+  name      String // 範疇
+  topics    Topic[]
+  exercises Exercise[]
+  createdAt DateTime @default(now())
+
+  @@unique([subjectId, code])
+}
+
+model Topic {
+  id               String   @id @default(cuid())
+  subjectId        String
+  subject          Subject  @relation(fields: [subjectId], references: [id])
+  domainId         String
+  domain           Domain   @relation(fields: [domainId], references: [id])
+  code             String // textbook topic code
+  title            String
+  /// Once true, title/objectives text cannot change
+  objectivesLocked Boolean  @default(false)
+  isActive         Boolean  @default(true)
+  objectives       LearningObjective[]
+  exercises        Exercise[]
+  planItems        ProgressPlanItem[]
+  mastery          MasterySnapshot[]
+  edgesFrom        ConnectionEdge[] @relation("EdgeFromTopic")
+  edgesTo          ConnectionEdge[] @relation("EdgeToTopic")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([subjectId, code])
+}
+
+model LearningObjective {
+  id        String   @id @default(cuid())
+  topicId   String
+  topic     Topic    @relation(fields: [topicId], references: [id])
+  code      String
+  text      String
+  sortOrder Int      @default(0)
+  retired   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@unique([topicId, code])
+}
+
+model ProgressPlan {
+  id        String   @id @default(cuid())
+  gradeId   String
+  grade     GradeLevel @relation(fields: [gradeId], references: [id])
+  subjectId String
+  subject   Subject  @relation(fields: [subjectId], references: [id])
+  name      String
+  schoolYear String
+  items     ProgressPlanItem[]
+  createdAt DateTime @default(now())
+
+  @@unique([gradeId, subjectId, schoolYear, name])
+}
+
+model ProgressPlanItem {
+  id               String   @id @default(cuid())
+  planId           String
+  plan             ProgressPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  topicId          String
+  topic            Topic    @relation(fields: [topicId], references: [id])
+  weekNo           Int
+  suggestedMinutes Int      @default(15)
+  note             String?
+  sortOrder        Int      @default(0)
+
+  @@unique([planId, topicId, weekNo])
+  @@index([planId, weekNo])
+}
+
+// ─── L2 Practice bank ────────────────────────────────────
+
+enum ReviewStatus {
+  draft
+  pending_review
+  approved
+  rejected
+}
+
+enum GameKind {
+  quiz
+  match
+  fill_blank
+  timed_rush
+  review_mix
+}
+
+model GameTemplate {
+  id          String   @id @default(cuid())
+  kind        GameKind
+  name        String
+  description String?
+  configJson  String   @default("{}") // JSON string for SQLite
+  exercises   Exercise[]
+  sessions    PracticeSession[]
+  createdAt   DateTime @default(now())
+}
+
+model Exercise {
+  id             String       @id @default(cuid())
+  topicId        String
+  topic          Topic        @relation(fields: [topicId], references: [id])
+  domainId       String
+  domain         Domain       @relation(fields: [domainId], references: [id])
+  templateId     String?
+  template       GameTemplate? @relation(fields: [templateId], references: [id])
+  stem           String
+  /// Lowercased / whitespace-collapsed stem for fuzzy dedupe
+  normalizedStem String
+  /// Hash of normalizedStem + answer key payload
+  contentHash    String
+  optionsJson    String       @default("[]") // JSON array
+  answerJson     String       @default("{}") // JSON
+  matchPairsJson String? // for match / 連線 games
+  difficulty     Int          @default(1) // 1-5
+  reviewStatus   ReviewStatus @default(draft)
+  isActive       Boolean      @default(true)
+  sessionItems   SessionItem[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([topicId, contentHash])
+  @@index([domainId, reviewStatus])
+  @@index([topicId, reviewStatus])
+}
+
+model ConnectionEdge {
+  id         String   @id @default(cuid())
+  fromTopicId String
+  fromTopic  Topic    @relation("EdgeFromTopic", fields: [fromTopicId], references: [id])
+  toTopicId  String
+  toTopic    Topic    @relation("EdgeToTopic", fields: [toTopicId], references: [id])
+  /// prerequisite | related | confusable
+  relation   String
+  weight     Float    @default(1)
+  createdAt  DateTime @default(now())
+
+  @@unique([fromTopicId, toTopicId, relation])
+}
+
+// ─── L3 Student identity ─────────────────────────────────
+
+model ClassRoom {
+  id        String   @id @default(cuid())
+  gradeId   String
+  grade     GradeLevel @relation(fields: [gradeId], references: [id])
+  code      String   @unique // 班別代碼 e.g. 4A
+  name      String
+  students  Student[]
+  createdAt DateTime @default(now())
+}
+
+model Student {
+  id          String   @id @default(cuid())
+  classId     String
+  classRoom   ClassRoom @relation(fields: [classId], references: [id])
+  studentNo   String // 學號 within class
+  displayName String?
+  sessions    PracticeSession[]
+  mastery     MasterySnapshot[]
+  createdAt   DateTime @default(now())
+
+  @@unique([classId, studentNo])
+}
+
+// ─── L4 Practice runtime ─────────────────────────────────
+
+model PracticeSession {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     Student  @relation(fields: [studentId], references: [id])
+  templateId  String?
+  template    GameTemplate? @relation(fields: [templateId], references: [id])
+  rngSeed     String
+  topicIdsJson String  @default("[]")
+  startedAt   DateTime @default(now())
+  endedAt     DateTime?
+  items       SessionItem[]
+}
+
+model SessionItem {
+  id         String   @id @default(cuid())
+  sessionId  String
+  session    PracticeSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  exerciseId String
+  exercise   Exercise @relation(fields: [exerciseId], references: [id])
+  position   Int
+  /// shuffled option order JSON
+  optionOrderJson String @default("[]")
+  attempt    Attempt?
+
+  @@unique([sessionId, position])
+  @@unique([sessionId, exerciseId])
+  @@index([exerciseId])
+}
+
+model Attempt {
+  id           String   @id @default(cuid())
+  sessionItemId String  @unique
+  sessionItem  SessionItem @relation(fields: [sessionItemId], references: [id], onDelete: Cascade)
+  responseJson String
+  isCorrect    Boolean
+  timeMs       Int?
+  createdAt    DateTime @default(now())
+}
+
+// ─── L5 Personalization ──────────────────────────────────
+
+model MasterySnapshot {
+  id            String   @id @default(cuid())
+  studentId     String
+  student       Student  @relation(fields: [studentId], references: [id])
+  topicId       String
+  topic         Topic    @relation(fields: [topicId], references: [id])
+  attemptCount  Int      @default(0)
+  correctCount  Int      @default(0)
+  /// 0..1 rolling mastery
+  score         Float    @default(0)
+  lastPracticedAt DateTime?
+  updatedAt     DateTime @updatedAt
+
+  @@unique([studentId, topicId])
+  @@index([studentId, score])
+}
