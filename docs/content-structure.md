@@ -136,8 +136,17 @@ CSV / JSON 欄位：
 - `gradeCode`, `subjectCode`, `weekNo`, `topicCode`, `suggestedMinutes`, `note`  
 - **不包含**可覆寫的 objective 文案；若帶 objective，只能用於「對帳」，不符則警告、不覆蓋。
 
-## 8. 實作對應
+## 8. 六級遊戲庫（Hub）
+
+與個人練習同一產品入口（`/hub`）：
+
+- 內建目錄：`public/data/games-catalog.json`  
+- 同學分享：瀏覽器 `localStorage` + 共享連結 `?pack=`  
+- 串接 Game Generator（`?grade=p4|p5|p6`）  
+
+## 9. 實作對應
 
 - Prisma schema：`prisma/schema.prisma`  
-- 領域規則：`src/lib/curriculum-guards.ts`、`src/lib/dedupe.ts`、`src/lib/random-session.ts`、`src/lib/recommend.ts`  
+- 領域規則：`src/lib/curriculum-guards.ts`、`src/lib/normalize.ts`、`src/lib/random-session.ts`、`src/lib/recommend.ts`、`src/lib/session-feedback.ts`  
+- 遊戲庫：`src/lib/game-hub.ts`、`src/app/hub/page.tsx`  
 - API 草案：`docs/api-outline.md`  
